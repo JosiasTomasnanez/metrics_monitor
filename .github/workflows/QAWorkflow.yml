@@ -1,0 +1,47 @@
+name: QA Workflow
+
+on:
+  workflow_dispatch:
+  pull_request:
+    # Pull request events
+    types: [synchronize, opened, reopened, ready_for_review]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Cache APT packages
+        uses: actions/cache@v2
+        with:
+          path: /var/cache/apt/archives
+          key: apt-cache-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            apt-cache-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y doxygen gcovr lcov cppcheck graphviz clang-format valgrind bc
+
+      - name: Cache CMake build
+        uses: actions/cache@v2
+        with:
+          path: build
+          key: build-cache-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            build-cache-${{ runner.os }}-
+
+      - name: Run style check
+        uses: ./.github/actions/style
+
+      - name: Run documentation check
+        uses: ./.github/actions/documentation
+
+      - name: Build project
+        uses: ./.github/actions/building

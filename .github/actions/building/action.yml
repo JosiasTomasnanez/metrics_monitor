@@ -1,0 +1,47 @@
+name: "Building"
+description: "Executes the build process and installs dependencies."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt update
+        sudo apt install -y cmake gcc g++ libmicrohttpd-dev
+
+    - name: Clone prometheus-client-c repository
+      shell: bash
+      run: |
+        git clone https://github.com/digitalocean/prometheus-client-c.git
+
+    - name: Fix incompatible function pointer in promhttp.c
+      shell: bash
+      run: |
+        sed -i 's/&promhttp_handler/(MHD_AccessHandlerCallback)promhttp_handler/' prometheus-client-c/promhttp/src/promhttp.c
+
+    - name: Build prom library
+      shell: bash
+      run: |
+        mkdir -p prometheus-client-c/buildprom
+        cd prometheus-client-c/buildprom
+        cmake ../prom
+        make
+        sudo make install
+
+    - name: Build promhttp library
+      shell: bash
+      run: |
+        mkdir -p prometheus-client-c/buildpromhttp
+        cd prometheus-client-c/buildpromhttp
+        cmake ../promhttp
+        make
+        sudo make install
+
+    - name: Build project
+      shell: bash
+      run: |
+        mkdir -p build
+        cd build
+        cmake ..
+        make
